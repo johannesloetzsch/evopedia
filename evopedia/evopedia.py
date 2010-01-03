@@ -842,6 +842,7 @@ def main():
     except KeyboardInterrupt:
         print '^C received, shutting down server'
         server.socket.close()
+        sys.exit()
 
 if __name__ == '__main__':
     main()
