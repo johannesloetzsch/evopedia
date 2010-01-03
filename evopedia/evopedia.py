@@ -44,6 +44,8 @@ import os
 config = {'static_path': '/usr/lib/evopedia/static',
           'article_path': '/usr/lib/evopedia/articles'}
 
+wp_link = 'http://de.wikipedia.org/wiki/'
+
 try:
     import dbus
 except ImportError:
@@ -173,6 +175,10 @@ class EvopediaHandler(BaseHTTPRequestHandler):
                             'href="/map/?lat=%f&lon=%f&zoom=13">' +
                             '<img src="/static/maparticle.png"></a>') %
                                      (lat, lon))
+                articlename = self.get_name_in_article(text)
+                self.wfile.write('<a class="evopedianav" ' +
+                        'href="' + wp_link + articlename + '">' +
+                        '<img src="/static/wikipedia.png"></a>')
                 self.wfile.write('</div>')
                 self.wfile.write(text)
             with open(path.join(config['static_path'], 'footer.html')) as foot:
@@ -289,6 +295,10 @@ class EvopediaHandler(BaseHTTPRequestHandler):
             if m:
                 (lat, lng) = self.parse_coordinates_dec(m)
         return (lat, lng)
+
+    def get_name_in_article(self, text):
+        articlename = text.split('>',1)[1].split('<',1)[0]
+        return articlename
 
     def splice_coords(self, coords):
         (head, rest) = ('%012.7f' % coords).split('.')
