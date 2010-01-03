@@ -148,6 +148,28 @@ normalization_table = {
        u"0": u"0", u"1": u"1", u"2": u"2", u"3": u"3", u"4": u"4", u"5": u"5",
        u"6": u"6", u"7": u"7", u"8": u"8", u"9": u"9"}
 
+scale_by_type = {
+      'country':    10000000,
+      'satellite':  10000000,  
+      'state':       3000000,
+      'adm1st':      1000000,
+      'adm2nd':       300000,
+      'default':      300000,
+      'adm3rd':       100000,
+      'city':         100000,
+      'mountain':     100000,
+      'isle':         100000,
+      'river':        100000,
+      'waterbody':    100000,
+      'event':         50000,
+      'forest':        50000,
+      'glacier':       50000,
+      'airport':       30000,
+      'edu':           10000,
+      'pass':          10000,
+      'landmark':      10000,
+      'railwaystation':10000 }      
+	
 
 class EvopediaHandler(BaseHTTPRequestHandler):
     TILESIZE = 256
@@ -171,10 +193,11 @@ class EvopediaHandler(BaseHTTPRequestHandler):
                 text = article.read()
                 (lat, lon) = self.get_coords_in_article(text)
                 if lat is not None and lon is not None:
+                    zoom = self.get_zoom_in_article(text)
                     self.wfile.write(('<a class="evopedianav" ' +
-                            'href="/map/?lat=%f&lon=%f&zoom=13">' +
+                            'href="/map/?lat=%f&lon=%f&zoom=%i">' +
                             '<img src="/static/maparticle.png"></a>') %
-                                     (lat, lon))
+                                     (lat, lon, zoom))
                 articlename = self.get_name_in_article(text)
                 self.wfile.write('<a class="evopedianav" ' +
                         'href="' + wp_link + articlename + '">' +
@@ -291,10 +314,36 @@ class EvopediaHandler(BaseHTTPRequestHandler):
         if m:
             (lat, lng) = self.parse_coordinates_dms(m)
         else:
-            m = re.search('params=(\d*\.\d*)_(N|S)_(\d*\.\d*)_(E|W)', text)
+            m = re.search('params=(\d*|\d*\.\d*)_(N|S)_(\d*|\d*\.\d*)_(E|W)', text)
             if m:
                 (lat, lng) = self.parse_coordinates_dec(m)
         return (lat, lng)
+
+    def get_zoom_in_article(self, text):
+        """guessing zoom from params in text as defined here: https://wiki.toolserver.org/view/GeoHack"""
+        scale = 100000 #default
+
+        """is „scale“ set?"""
+        m = re.search('params=(\S*)_scale:(\d*)', text)
+        if m:
+            scale = m.group(2)
+
+        else:
+            """is „dim“ set?"""
+            m = re.search('params=(\S*)_dim:(\d*)', text)
+            if m:
+                dim = m.group(2)
+                scale = 10*int(dim)
+
+            else:
+                """is „type“ set?"""
+                m = re.search('params=(\S*)_type:([a-z0-9]*)', text)
+                if m:
+                    type = m.group(2)
+                    if type in scale_by_type:
+                        scale = scale_by_type[type]
+
+        return int(max(2,min(18,round( 28.7253 - math.log(float(scale),2) ))))
 
     def get_name_in_article(self, text):
         articlename = text.split('>',1)[1].split('<',1)[0]
